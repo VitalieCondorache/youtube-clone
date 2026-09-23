@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const videoRoutes = require('./routes/videoRoutes');
+const commentRoutes = require('./routes/commentRoutes');
 
 // Connect to Database
 connectDB();
@@ -18,6 +20,7 @@ app.use('/uploads', express.static('src/uploads'));
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/videos', videoRoutes);
+app.use('/api/v1/comments', commentRoutes);
 
 // Health Check Route
 app.get('/api/v1/health', (req, res) => {
