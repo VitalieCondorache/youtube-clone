@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const connectDB = require('./config/db');
+const authRoutes = require('./routes/authRoutes');
 
 // Connect to Database
 connectDB();
@@ -13,7 +14,10 @@ app.use(express.json());
 app.use(cors());
 app.use('/uploads', express.static('src/uploads'));
 
-// Base Route
+// API Routes
+app.use('/api/v1/auth', authRoutes);
+
+// Health Check Route
 app.get('/api/v1/health', (req, res) => {
     res.status(200).json({ status: 'success', message: 'YouTube Clone API is running' });
 });
