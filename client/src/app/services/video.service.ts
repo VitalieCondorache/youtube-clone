@@ -66,6 +66,11 @@ export class VideoService {
     return this.http.get<ApiResponse<Video[]>>(`${this.apiUrl}/mine`);
   }
 
+  // Update the title and the description of one of my videos
+  updateVideo(id: string, data: { title: string; description: string }): Observable<ApiResponse<Video>> {
+    return this.http.put<ApiResponse<Video>>(`${this.apiUrl}/${id}`, data);
+  }
+
   // Upload a video together with its thumbnail, reporting the progress events
   uploadVideo(data: {
     title: string;
