@@ -14,7 +14,7 @@ consistent response contract, and a unit test suite for the client.
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose%209-47A248?logo=mongodb&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwindcss&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-43_passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-51_passing-brightgreen)
 
 ---
 
@@ -35,8 +35,10 @@ keeping the same names (1280x720 recommended) and the table above keeps working.
 ## Features
 
 ### Accounts
-- Registration and login with hashed passwords (**bcryptjs**) and **JWT** sessions (7 day expiry)
-- The token is kept in `localStorage` and attached to every request by a functional HTTP interceptor
+- Registration and login with hashed passwords (**bcryptjs**)
+- Short lived access tokens plus **rotating refresh tokens**, so the session survives without asking for the password again
+- The interceptor repeats a request that failed with 401 after refreshing, and signs the user out when the refresh token is gone too
+- Refresh tokens are random, stored as a hash with a TTL index, rotated on every use and revoked on logout
 - Route guards keep anonymous visitors away from the authenticated pages
 
 ### Videos
@@ -126,7 +128,9 @@ Open <http://localhost:4200>, register an account and upload your first video.
 | --- | --- | --- |
 | `PORT` | Port the API listens on. Avoid 5000 on macOS | `5001` |
 | `MONGO_URI` | MongoDB connection string | `mongodb://localhost:27017/youtube-clone` |
-| `JWT_SECRET` | Secret used to sign the tokens | a long random string |
+| `JWT_SECRET` | Secret used to sign the access tokens | a long random string |
+| `JWT_EXPIRES_IN` | Lifetime of an access token | `15m` |
+| `REFRESH_TOKEN_DAYS` | Lifetime of a refresh token | `30` |
 | `STORAGE_DRIVER` | `local` keeps the files on disk, `s3` sends them to a bucket | `local` |
 
 When `STORAGE_DRIVER=s3`, these are required as well. They work with AWS S3, Cloudflare R2,
@@ -174,8 +178,12 @@ The feed is paginated. Besides the items it reports the page that was returned, 
 | --- | --- | --- | --- |
 | `POST` | `/auth/register` | Public | Create an account. Body: `{ username, email, password }` |
 | `POST` | `/auth/login` | Public | Authenticate. Body: `{ email, password }` |
+| `POST` | `/auth/refresh` | Public | Exchange a refresh token for a new pair. Body: `{ refreshToken }` |
+| `POST` | `/auth/logout` | Public | Revoke the session of a refresh token. Body: `{ refreshToken }` |
 
-Both answer with `{ status, data: { _id, username, email, token } }`.
+Register and login answer with `{ status, data: { _id, username, email, accessToken, refreshToken } }`.
+The access token travels in the `Authorization` header, the refresh token is only used against
+`/auth/refresh`, where it is rotated for a new one.
 
 ### Videos
 
@@ -288,6 +296,12 @@ stack trace.
 **Counters in one query.** The feed reads the like and dislike counters of every video with a single
 aggregation instead of one query per video.
 
+**Sessions use two tokens.** The access token is a short lived JWT (15 minutes by default) sent with
+every request. The refresh token is a random string stored in MongoDB as a sha256 hash with a TTL
+index, rotated on every use and revoked on logout. When a request answers 401 the client exchanges it
+in the background and repeats the call, so an expired access token stays invisible; when the refresh
+token is gone as well the session is dropped and the user is asked to sign in again.
+
 **Storage is a driver.** The API only knows `saveFile` and `removeFile` (`server/src/storage`).
 `local` writes to `server/src/uploads` and serves the files at `/uploads`, `s3` puts the buffer in a
 bucket and returns its public url. Both store a plain url in MongoDB, so records created with one
@@ -307,15 +321,15 @@ npm test
 
 ```
 Test Files  10 passed (10)
-     Tests  43 passed (43)
+     Tests  51 passed (51)
 ```
 
 | Spec | Covers |
 | --- | --- |
 | `app.spec.ts` | the root component renders the navbar and the router outlet |
 | `components/home/home.component.spec.ts` | the feed pages, the scroll trigger and a failing feed |
-| `services/auth.service.spec.ts` | register payload, token persistence, error status, logout |
-| `interceptors/auth.interceptor.spec.ts` | the bearer header is added only when a session exists |
+| `services/auth.service.spec.ts` | register and login, the stored pair, the shared refresh, logout |
+| `interceptors/auth.interceptor.spec.ts` | the bearer header, the refresh and retry, the sign out when the session dies |
 | `guards/auth.guard.spec.ts` | logged in users pass, anonymous visitors are redirected |
 | `components/watch/watch.component.spec.ts` | player and comments, reactions, posting a comment |
 | `components/upload/upload.component.spec.ts` | validation, the video and thumbnail previews, progress and navigation |
@@ -375,7 +389,6 @@ Client (`client/`):
 
 ## Roadmap
 
-- Refresh tokens and a global 401 handler that signs the user out
 - Server side tests for the controllers and the middleware
 
 ---
