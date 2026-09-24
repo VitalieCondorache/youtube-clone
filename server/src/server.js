@@ -46,6 +46,29 @@ app.get('/api/v1/health', (req, res) => {
     res.status(200).json({ status: 'success', message: 'YouTube Clone API is running' });
 });
 
+// Unknown API routes answer with JSON instead of the Express HTML page
+app.use('/api', (req, res) => {
+    res.status(404).json({ status: 'fail', message: `Route ${req.method} ${req.originalUrl} not found` });
+});
+
+// Central error handler, so upload problems (size, type) reach the client as JSON
+app.use((error, req, res, next) => {
+    if (error.name === 'MulterError') {
+        const messages = {
+            LIMIT_FILE_SIZE: 'File is too large. The maximum allowed size is 100MB',
+            LIMIT_FILE_COUNT: 'Too many files were sent',
+            LIMIT_UNEXPECTED_FILE: 'Unexpected file field'
+        };
+
+        return res.status(400).json({ status: 'fail', message: messages[error.code] || error.message });
+    }
+
+    console.error(error);
+    res.status(error.status || 500).json({
+        status: 'error',
+        message: error.message || 'Something went wrong'
+    });
+});
 const PORT = process.env.PORT || 5001;
 const server = app.listen(PORT, () => {
     console.log(`Server running in development mode on port ${PORT}`);

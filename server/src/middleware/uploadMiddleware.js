@@ -12,22 +12,29 @@ const storage = multer.diskStorage({
     }
 });
 
+// Validation errors carry a status so the API can answer with JSON instead of an HTML stack
+const validationError = (message) => {
+    const error = new Error(message);
+    error.status = 400;
+    return error;
+};
+
 // File filter to allow only videos and images
 const fileFilter = (req, file, cb) => {
     if (file.fieldname === 'videoFile') {
         if (file.mimetype.startsWith('video/')) {
             cb(null, true);
         } else {
-            cb(new Error('Only video files are allowed!'), false);
+            cb(validationError('Only video files are allowed'), false);
         }
     } else if (file.fieldname === 'thumbnailFile') {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
         } else {
-            cb(new Error('Only image files are allowed for thumbnails!'), false);
+            cb(validationError('Only image files are allowed for the thumbnail'), false);
         }
     } else {
-        cb(new Error('Unexpected field'), false);
+        cb(validationError(`Unexpected file field: ${file.fieldname}`), false);
     }
 };
 
