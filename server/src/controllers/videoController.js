@@ -32,6 +32,20 @@ const getLikeStats = async (videoIds) => {
 
 const noStats = { likesCount: 0, dislikesCount: 0 };
 
+const DEFAULT_PAGE_SIZE = 12;
+const MAX_PAGE_SIZE = 50;
+
+// Reads page and limit from the query string, ignoring anything invalid
+const getPaging = (req) => {
+    const page = Number(req.query.page);
+    const limit = Number(req.query.limit);
+
+    const validPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const validLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, MAX_PAGE_SIZE) : DEFAULT_PAGE_SIZE;
+
+    return { page: validPage, limit: validLimit, skip: (validPage - 1) * validLimit };
+};
+
 // @desc    Upload a new video
 // @route   POST /api/v1/videos
 // @access  Private
@@ -40,10 +54,12 @@ const uploadVideo = async (req, res) => {
         const { title, description } = req.body;
 
         if (!title || !title.trim()) {
+            await removeStoredFiles(req.files);
             return res.status(400).json({ status: 'fail', message: 'A title is required' });
         }
 
         if (!req.files || !req.files.videoFile || !req.files.thumbnailFile) {
+            await removeStoredFiles(req.files);
             return res.status(400).json({ status: 'fail', message: 'Both video file and thumbnail are required' });
         }
 
@@ -63,18 +79,26 @@ const uploadVideo = async (req, res) => {
             data: video
         });
     } catch (error) {
+        // multer stores the files before this handler runs, do not leave them behind
+        await removeStoredFiles(req.files);
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
-
-// @desc    Get all videos (with their like/dislike counters)
-// @route   GET /api/v1/videos
+// @desc    Get one page of the video feed (with their like/dislike counters)
+// @route   GET /api/v1/videos?page=1&limit=12
 // @access  Public
 const getVideos = async (req, res) => {
     try {
-        const videos = await Video.find({})
-            .populate('uploader', 'username avatarUrl')
-            .sort({ createdAt: -1 });
+        const { page, limit, skip } = getPaging(req);
+
+        const [videos, total] = await Promise.all([
+            Video.find({})
+                .populate('uploader', 'username avatarUrl')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            Video.countDocuments({})
+        ]);
 
         const likeStats = await getLikeStats(videos.map((video) => video._id));
 
@@ -86,6 +110,10 @@ const getVideos = async (req, res) => {
         res.status(200).json({
             status: 'success',
             results: data.length,
+            page,
+            limit,
+            pages: Math.max(1, Math.ceil(total / limit)),
+            total,
             data
         });
     } catch (error) {
@@ -262,6 +290,19 @@ const updateVideo = async (req, res) => {
     } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
     }
+};
+
+// Removes the files that multer stored for a request that will not be saved
+const removeStoredFiles = async (files) => {
+    if (!files) {
+        return;
+    }
+
+    const urls = Object.values(files)
+        .flat()
+        .map((file) => `/uploads/${file.filename}`);
+
+    await Promise.all(urls.map(removeUpload));
 };
 
 // Removes an uploaded file from disk. A file that is already gone is not an error.
