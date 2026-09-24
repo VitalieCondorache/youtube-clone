@@ -39,6 +39,10 @@ const uploadVideo = async (req, res) => {
     try {
         const { title, description } = req.body;
 
+        if (!title || !title.trim()) {
+            return res.status(400).json({ status: 'fail', message: 'A title is required' });
+        }
+
         if (!req.files || !req.files.videoFile || !req.files.thumbnailFile) {
             return res.status(400).json({ status: 'fail', message: 'Both video file and thumbnail are required' });
         }
@@ -47,8 +51,8 @@ const uploadVideo = async (req, res) => {
         const thumbnailUrl = `/uploads/${req.files.thumbnailFile[0].filename}`;
 
         const video = await Video.create({
-            title,
-            description,
+            title: title.trim(),
+            description: (description || '').trim(),
             videoUrl,
             thumbnailUrl,
             uploader: req.user._id
@@ -206,6 +210,60 @@ const getMyVideos = async (req, res) => {
     }
 };
 
+// @desc    Update the title and the description of one of my videos
+// @route   PUT /api/v1/videos/:id
+// @access  Private (owner only)
+const updateVideo = async (req, res) => {
+    try {
+        const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+        const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+
+        if (!title) {
+            return res.status(400).json({ status: 'fail', message: 'A title is required' });
+        }
+
+        if (title.length > 120) {
+            return res.status(400).json({ status: 'fail', message: 'The title cannot be longer than 120 characters' });
+        }
+
+        if (description.length > 5000) {
+            return res.status(400).json({ status: 'fail', message: 'The description cannot be longer than 5000 characters' });
+        }
+
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(404).json({ status: 'fail', message: 'Video not found' });
+        }
+
+        const video = await Video.findById(req.params.id);
+
+        if (!video) {
+            return res.status(404).json({ status: 'fail', message: 'Video not found' });
+        }
+
+        if (String(video.uploader) !== String(req.user._id)) {
+            return res.status(403).json({ status: 'fail', message: 'You can only edit your own videos' });
+        }
+
+        video.title = title;
+        video.description = description;
+        await video.save();
+
+        await video.populate('uploader', 'username avatarUrl');
+
+        const likeStats = (await getLikeStats([video._id])).get(String(video._id)) || noStats;
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                ...video.toObject(),
+                ...likeStats
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 // Removes an uploaded file from disk. A file that is already gone is not an error.
 const removeUpload = async (url) => {
     // basename() keeps a crafted url from escaping the uploads folder
@@ -271,6 +329,7 @@ module.exports = {
     getVideoById,
     getMyVideos,
     toggleLike,
+    updateVideo,
     deleteVideo
 };
 

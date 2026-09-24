@@ -5,6 +5,7 @@ const {
     getVideoById,
     getMyVideos,
     toggleLike,
+    updateVideo,
     deleteVideo
 } = require('../controllers/videoController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
@@ -25,6 +26,9 @@ router.post('/:id/like', protect, toggleLike);
 
 // Delete a video (only its uploader)
 router.delete('/:id', protect, deleteVideo);
+
+// Edit the title and the description of a video (only its uploader)
+router.put('/:id', protect, updateVideo);
 
 // Protected route for uploading videos with multiple files (video + thumbnail)
 router.post(
