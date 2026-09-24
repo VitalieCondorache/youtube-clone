@@ -17,6 +17,20 @@ consistent response contract, and a unit test suite for the client.
 
 ---
 
+## Screenshots
+
+| Video feed | Watch page | Upload |
+| :---: | :---: | :---: |
+| ![Video feed](./docs/feed.png) | ![Watch page](./docs/watch.png) | ![Upload page](./docs/upload.png) |
+| Browse the uploaded videos with the channel name and the counters | Player, reactions and the comment thread | Pick the files and follow the upload progress |
+
+<!--
+The screenshots live in docs/. To use your own captures, replace the three files
+keeping the same names (1280x720 recommended) and the table above keeps working.
+-->
+
+---
+
 ## Features
 
 ### Accounts
