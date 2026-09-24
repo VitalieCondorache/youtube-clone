@@ -13,7 +13,7 @@ consistent response contract, and a unit test suite for the client.
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose%209-47A248?logo=mongodb&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwindcss&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-30_passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-35_passing-brightgreen)
 
 ---
 
@@ -42,6 +42,7 @@ keeping the same names (1280x720 recommended) and the table above keeps working.
 - Public feed with thumbnails, channel name, view counter, like counter and upload dates
 - Video detail page with the player, description, channel and view counter (incremented on each visit)
 - Dedicated page listing the videos you uploaded, with an inline confirmation to delete them
+- The title and the description of your own videos can be edited inline from that page
 - Deleting a video also removes its comments, its reactions and the media files from disk
 
 ### Engagement
@@ -162,6 +163,7 @@ Both answer with `{ status, data: { _id, username, email, token } }`.
 | `GET` | `/videos/:id` | Public | Single video, increments `views`; includes `userReaction` when a token is sent |
 | `POST` | `/videos` | Private | Upload. `multipart/form-data` with `title`, `description`, `videoFile`, `thumbnailFile` |
 | `POST` | `/videos/:id/like` | Private | Body `{ value: 1 \| -1 }`. The same value twice removes the reaction |
+| `PUT` | `/videos/:id` | Private | Update the title and the description of your own video |
 | `DELETE` | `/videos/:id` | Private | Delete your own video, its comments, its reactions and its files |
 
 ### Comments, health and static files
@@ -276,7 +278,7 @@ npm test
 
 ```
 Test Files  9 passed (9)
-     Tests  30 passed (30)
+     Tests  35 passed (35)
 ```
 
 | Spec | Covers |
@@ -287,7 +289,7 @@ Test Files  9 passed (9)
 | `guards/auth.guard.spec.ts` | logged in users pass, anonymous visitors are redirected |
 | `components/watch/watch.component.spec.ts` | player and comments, reactions, posting a comment |
 | `components/upload/upload.component.spec.ts` | validation, thumbnail preview, progress and navigation |
-| `components/my-videos/my-videos.component.spec.ts` | listing, delete confirmation, removal from the list |
+| `components/my-videos/my-videos.component.spec.ts` | listing, editing and the confirmed delete flow |
 | `shared/format.util.spec.ts` | counters and file sizes |
 | `shared/http-error.util.spec.ts` | reading an API message, including an empty body |
 
@@ -332,9 +334,8 @@ Client (`client/`):
 ## Roadmap
 
 - Preview the uploaded video before submitting the form
-- Edit the title and the description of an existing video
-- Move the uploads from the local disk to object storage
 - Pagination or infinite scroll on the feed
+- Move the uploads from the local disk to object storage
 - Refresh tokens and a global 401 handler that signs the user out
 - Server side tests for the controllers and the middleware
 
