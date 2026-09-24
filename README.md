@@ -14,7 +14,7 @@ consistent response contract, and a unit test suite for the client.
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose%209-47A248?logo=mongodb&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwindcss&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-40_passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-43_passing-brightgreen)
 
 ---
 
@@ -54,7 +54,7 @@ keeping the same names (1280x720 recommended) and the table above keeps working.
 
 ### Upload
 - Multipart upload of a video file together with its thumbnail
-- Thumbnail preview before uploading (object URL, revoked on destroy)
+- The picked video and image are previewed locally before anything is sent (object urls, revoked on destroy)
 - Real upload progress bar driven by `HttpEventType.UploadProgress`
 - Client side validation (required fields, `video/*` and `image/*` MIME types, 100 MB limit) mirrored
   by server side validation
@@ -287,7 +287,7 @@ npm test
 
 ```
 Test Files  10 passed (10)
-     Tests  40 passed (40)
+     Tests  43 passed (43)
 ```
 
 | Spec | Covers |
@@ -298,7 +298,7 @@ Test Files  10 passed (10)
 | `interceptors/auth.interceptor.spec.ts` | the bearer header is added only when a session exists |
 | `guards/auth.guard.spec.ts` | logged in users pass, anonymous visitors are redirected |
 | `components/watch/watch.component.spec.ts` | player and comments, reactions, posting a comment |
-| `components/upload/upload.component.spec.ts` | validation, thumbnail preview, progress and navigation |
+| `components/upload/upload.component.spec.ts` | validation, the video and thumbnail previews, progress and navigation |
 | `components/my-videos/my-videos.component.spec.ts` | listing, editing and the confirmed delete flow |
 | `shared/format.util.spec.ts` | counters and file sizes |
 | `shared/http-error.util.spec.ts` | reading an API message, including an empty body |
@@ -355,7 +355,6 @@ Client (`client/`):
 
 ## Roadmap
 
-- Preview the uploaded video before submitting the form
 - Move the uploads from the local disk to object storage
 - Refresh tokens and a global 401 handler that signs the user out
 - Server side tests for the controllers and the middleware

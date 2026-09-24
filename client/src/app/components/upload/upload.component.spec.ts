@@ -13,6 +13,7 @@ describe('UploadComponent', () => {
   const thumbnailFile = new File(['image-bytes'], 'cover.jpg', { type: 'image/jpeg' });
 
   const pick = (file: File) => ({ target: { files: [file] } }) as unknown as Event;
+  const pickNothing = () => ({ target: { files: [] } }) as unknown as Event;
 
   beforeEach(async () => {
     localStorage.clear();
@@ -69,6 +70,42 @@ describe('UploadComponent', () => {
     expect(component.thumbnailFile()).toBe(thumbnailFile);
     expect(component.thumbnailPreview()).toBe('blob:preview');
     expect(URL.createObjectURL).toHaveBeenCalledWith(thumbnailFile);
+  });
+
+  it('previews the picked video so it can be watched before uploading', () => {
+    component.onVideoSelected(pick(videoFile));
+
+    expect(component.videoFile()).toBe(videoFile);
+    expect(component.videoPreview()).toBe('blob:preview');
+    expect(URL.createObjectURL).toHaveBeenCalledWith(videoFile);
+
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('video')).toBeTruthy();
+  });
+
+  it('clears the previews when a file dialog is dismissed', () => {
+    component.onThumbnailSelected(pick(thumbnailFile));
+    component.onVideoSelected(pick(videoFile));
+
+    component.onThumbnailSelected(pickNothing());
+    component.onVideoSelected(pickNothing());
+
+    expect(component.thumbnailFile()).toBeNull();
+    expect(component.videoFile()).toBeNull();
+    expect(component.thumbnailPreview()).toBe('');
+    expect(component.videoPreview()).toBe('');
+  });
+
+  it('releases the object urls when the component is destroyed', () => {
+    component.onThumbnailSelected(pick(thumbnailFile));
+    component.onVideoSelected(pick(videoFile));
+
+    // the calls made while picking are not part of this check
+    vi.mocked(URL.revokeObjectURL).mockClear();
+
+    fixture.destroy();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
   });
 
   it('uploads the form data, reports the progress and opens the new video', () => {

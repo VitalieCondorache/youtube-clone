@@ -74,6 +74,9 @@ import { readApiError } from '../../shared/http-error.util';
                 (change)="onVideoSelected($event)"
                 class="block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-3 file:rounded-full file:border-0 file:bg-gray-800 file:text-gray-200 hover:file:bg-gray-700"
               />
+              <div *ngIf="videoPreview()" class="mt-3 aspect-video bg-black rounded-lg overflow-hidden">
+                <video class="w-full h-full" [src]="videoPreview()" controls></video>
+              </div>
               <p *ngIf="videoFile()" class="mt-3 text-xs text-gray-400">
                 {{ videoFile()!.name }} • {{ formatSize(videoFile()!.size) }}
               </p>
@@ -116,6 +119,7 @@ export class UploadComponent implements OnDestroy {
   readonly videoFile = signal<File | null>(null);
   readonly thumbnailFile = signal<File | null>(null);
   readonly thumbnailPreview = signal('');
+  readonly videoPreview = signal('');
   readonly uploading = signal(false);
   readonly progress = signal(0);
   readonly errorMessage = signal('');
@@ -129,7 +133,8 @@ export class UploadComponent implements OnDestroy {
   constructor(private videoService: VideoService, private router: Router) {}
 
   ngOnDestroy(): void {
-    this.revokePreview();
+    this.revokeObjectUrl(this.thumbnailPreview());
+    this.revokeObjectUrl(this.videoPreview());
   }
 
   onThumbnailSelected(event: Event): void {
@@ -137,12 +142,10 @@ export class UploadComponent implements OnDestroy {
 
     this.errorMessage.set('');
     this.thumbnailFile.set(file);
-    this.revokePreview();
+    this.revokeObjectUrl(this.thumbnailPreview());
 
-    if (file) {
-      // an object url lets the browser show the picked image before it is uploaded
-      this.thumbnailPreview.set(URL.createObjectURL(file));
-    }
+    // an object url lets the browser show the picked file before it is uploaded
+    this.thumbnailPreview.set(file ? URL.createObjectURL(file) : '');
   }
 
   onVideoSelected(event: Event): void {
@@ -150,6 +153,10 @@ export class UploadComponent implements OnDestroy {
 
     this.errorMessage.set('');
     this.videoFile.set(file);
+    this.revokeObjectUrl(this.videoPreview());
+
+    // same trick for the video, so it can be played back before the upload
+    this.videoPreview.set(file ? URL.createObjectURL(file) : '');
   }
 
   onSubmit(): void {
@@ -228,11 +235,9 @@ export class UploadComponent implements OnDestroy {
     this.uploading.set(false);
   }
 
-  private revokePreview(): void {
-    const preview = this.thumbnailPreview();
-
-    if (preview) {
-      URL.revokeObjectURL(preview);
+  private revokeObjectUrl(url: string): void {
+    if (url) {
+      URL.revokeObjectURL(url);
     }
   }
 }
