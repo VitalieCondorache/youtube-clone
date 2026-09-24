@@ -13,4 +13,23 @@ export const formatCount = (value: number): string => {
   return `${count}`;
 };
 
+// 1536 -> "1.5 KB", 1048576 -> "1 MB", used for file sizes
+export const formatSize = (bytes: number): string => {
+  const value = Number(bytes) || 0;
+
+  if (value >= 1024 * 1024 * 1024) {
+    return `${withOneDecimal(value / (1024 * 1024 * 1024))} GB`;
+  }
+
+  if (value >= 1024 * 1024) {
+    return `${withOneDecimal(value / (1024 * 1024))} MB`;
+  }
+
+  if (value >= 1024) {
+    return `${withOneDecimal(value / 1024)} KB`;
+  }
+
+  return `${value} B`;
+};
+
 const withOneDecimal = (value: number): string => value.toFixed(1).replace(/\.0$/, '');

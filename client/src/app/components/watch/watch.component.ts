@@ -6,6 +6,7 @@ import { Video, VideoService } from '../../services/video.service';
 import { CommentService, VideoComment } from '../../services/comment.service';
 import { AuthService } from '../../services/auth.service';
 import { formatCount } from '../../shared/format.util';
+import { readApiError } from '../../shared/http-error.util';
 
 @Component({
   selector: 'app-watch',
@@ -256,7 +257,7 @@ export class WatchComponent implements OnInit {
 
   // The response body can be empty (proxy or server errors), so never read it blindly
   private readErrorMessage(err: { error?: { message?: string }; message?: string }, fallback: string): string {
-    return err?.error?.message || err?.message || fallback;
+    return readApiError(err, fallback);
   }
 }
 
