@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -13,8 +13,8 @@ import { AuthService } from '../../services/auth.service';
       <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-96">
         <h2 class="text-2xl font-bold mb-6 text-center text-red-600">YouTube Clone - Login</h2>
         
-        <div *ngIf="errorMessage" class="bg-red-500 text-white p-3 rounded mb-4 text-sm">
-          {{ errorMessage }}
+        <div *ngIf="errorMessage()" class="bg-red-500 text-white p-3 rounded mb-4 text-sm">
+          {{ errorMessage() }}
         </div>
 
         <form (ngSubmit)="onLogin()">
@@ -58,7 +58,7 @@ import { AuthService } from '../../services/auth.service';
 export class LoginComponent {
   email = '';
   password = '';
-  errorMessage = '';
+  readonly errorMessage = signal('');
 
   constructor(private authService: AuthService, private router: Router) {}
 
@@ -71,11 +71,11 @@ export class LoginComponent {
       error: (err) => {
         // The response body can be empty (proxy/server errors), so guard before reading it
         if (err.error && err.error.message) {
-          this.errorMessage = err.error.message;
+          this.errorMessage.set(err.error.message);
         } else if (err.message) {
-          this.errorMessage = err.message;
+          this.errorMessage.set(err.message);
         } else {
-          this.errorMessage = 'Invalid credentials or server error';
+          this.errorMessage.set('Invalid credentials or server error');
         }
       }
     });
