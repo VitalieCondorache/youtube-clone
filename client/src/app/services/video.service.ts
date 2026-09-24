@@ -38,6 +38,14 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+// The feed is paginated, these fields describe the page that was returned
+export interface PaginatedResponse<T> extends ApiResponse<T> {
+  page: number;
+  limit: number;
+  pages: number;
+  total: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -46,9 +54,9 @@ export class VideoService {
 
   constructor(private http: HttpClient) {}
 
-  // Get all videos
-  getVideos(): Observable<ApiResponse<Video[]>> {
-    return this.http.get<ApiResponse<Video[]>>(this.apiUrl);
+  // Get one page of the feed (12 videos by default)
+  getVideos(page = 1, limit = 12): Observable<PaginatedResponse<Video[]>> {
+    return this.http.get<PaginatedResponse<Video[]>>(this.apiUrl, { params: { page, limit } });
   }
 
   // Get video by ID (also increments its view counter)
