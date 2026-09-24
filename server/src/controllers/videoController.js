@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
+const path = require('path');
+const fs = require('fs/promises');
 const Video = require('../models/Video');
 const Like = require('../models/Like');
+const Comment = require('../models/Comment');
 
 // Aggregate the likes/dislikes of several videos in a single query
 const getLikeStats = async (videoIds) => {
@@ -177,9 +180,97 @@ const toggleLike = async (req, res) => {
     }
 };
 
+// @desc    Get the videos uploaded by the current user
+// @route   GET /api/v1/videos/mine
+// @access  Private
+const getMyVideos = async (req, res) => {
+    try {
+        const videos = await Video.find({ uploader: req.user._id })
+            .populate('uploader', 'username avatarUrl')
+            .sort({ createdAt: -1 });
+
+        const likeStats = await getLikeStats(videos.map((video) => video._id));
+
+        const data = videos.map((video) => ({
+            ...video.toObject(),
+            ...(likeStats.get(String(video._id)) || noStats)
+        }));
+
+        res.status(200).json({
+            status: 'success',
+            results: data.length,
+            data
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+// Removes an uploaded file from disk. A file that is already gone is not an error.
+const removeUpload = async (url) => {
+    // basename() keeps a crafted url from escaping the uploads folder
+    const filename = path.basename(url || '');
+
+    if (!filename) {
+        return;
+    }
+
+    const filePath = path.join(__dirname, '..', 'uploads', filename);
+
+    try {
+        await fs.unlink(filePath);
+    } catch (error) {
+        if (error.code !== 'ENOENT') {
+            console.error(`Could not delete ${filePath}: ${error.message}`);
+        }
+    }
+};
+
+// @desc    Delete one of the videos of the current user (its media, comments and likes too)
+// @route   DELETE /api/v1/videos/:id
+// @access  Private (owner only)
+const deleteVideo = async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(404).json({ status: 'fail', message: 'Video not found' });
+        }
+
+        const video = await Video.findById(req.params.id);
+
+        if (!video) {
+            return res.status(404).json({ status: 'fail', message: 'Video not found' });
+        }
+
+        if (String(video.uploader) !== String(req.user._id)) {
+            return res.status(403).json({ status: 'fail', message: 'You can only delete your own videos' });
+        }
+
+        // Comments and reactions do not survive their video
+        await Promise.all([
+            Comment.deleteMany({ video: video._id }),
+            Like.deleteMany({ video: video._id })
+        ]);
+
+        await video.deleteOne();
+
+        // The media files are secondary, removeUpload never throws
+        await Promise.all([removeUpload(video.videoUrl), removeUpload(video.thumbnailUrl)]);
+
+        res.status(200).json({
+            status: 'success',
+            data: { _id: video._id }
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 module.exports = {
     uploadVideo,
     getVideos,
     getVideoById,
-    toggleLike
+    getMyVideos,
+    toggleLike,
+    deleteVideo
 };
+
