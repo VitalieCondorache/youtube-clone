@@ -1,11 +1,6 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-
-// Generate JWT token helper
-const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-};
+const { issueTokenPair, rotateRefreshToken, revokeRefreshToken } = require('../services/tokenService');
 
 // @desc    Register a new user
 // @route   POST /api/v1/auth/register
@@ -31,19 +26,19 @@ const registerUser = async (req, res) => {
             password: hashedPassword
         });
 
-        if (user) {
-            res.status(201).json({
-                status: 'success',
-                data: {
-                    _id: user._id,
-                    username: user.username,
-                    email: user.email,
-                    token: generateToken(user._id)
-                }
-            });
-        } else {
-            res.status(400).json({ status: 'fail', message: 'Invalid user data provided' });
+        if (!user) {
+            return res.status(400).json({ status: 'fail', message: 'Invalid user data provided' });
         }
+
+        res.status(201).json({
+            status: 'success',
+            data: {
+                _id: user._id,
+                username: user.username,
+                email: user.email,
+                ...(await issueTokenPair(user._id))
+            }
+        });
     } catch (error) {
         console.error('Registration error:', error); // Add logging
         res.status(500).json({ status: 'error', message: error.message });
@@ -75,7 +70,7 @@ const loginUser = async (req, res) => {
                 _id: user._id,
                 username: user.username,
                 email: user.email,
-                token: generateToken(user._id)
+                ...(await issueTokenPair(user._id))
             }
         });
     } catch (error) {
@@ -84,7 +79,60 @@ const loginUser = async (req, res) => {
     }
 };
 
+// @desc    Exchange a refresh token for a new token pair (the old one is rotated out)
+// @route   POST /api/v1/auth/refresh
+// @access  Public (the refresh token itself is the proof)
+const refreshTokens = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+
+        if (!refreshToken) {
+            return res.status(400).json({ status: 'fail', message: 'A refresh token is required' });
+        }
+
+        const rotated = await rotateRefreshToken(refreshToken);
+
+        if (!rotated) {
+            return res.status(401).json({ status: 'fail', message: 'The session has expired, please sign in again' });
+        }
+
+        const user = await User.findById(rotated.userId);
+
+        if (!user) {
+            return res.status(401).json({ status: 'fail', message: 'This account no longer exists' });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                _id: user._id,
+                username: user.username,
+                email: user.email,
+                accessToken: rotated.accessToken,
+                refreshToken: rotated.refreshToken
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+// @desc    End the session that owns the given refresh token
+// @route   POST /api/v1/auth/logout
+// @access  Public (the refresh token itself is the proof)
+const logoutUser = async (req, res) => {
+    try {
+        await revokeRefreshToken(req.body.refreshToken);
+
+        res.status(200).json({ status: 'success', data: {} });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
-    loginUser
+    loginUser,
+    refreshTokens,
+    logoutUser
 };
