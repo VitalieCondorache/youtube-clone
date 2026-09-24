@@ -56,6 +56,7 @@ keeping the same names (1280x720 recommended) and the table above keeps working.
 - Multipart upload of a video file together with its thumbnail
 - The picked video and image are previewed locally before anything is sent (object urls, revoked on destroy)
 - Real upload progress bar driven by `HttpEventType.UploadProgress`
+- The files go through a storage driver: the local disk by default, any S3 compatible bucket with `STORAGE_DRIVER=s3`
 - Client side validation (required fields, `video/*` and `image/*` MIME types, 100 MB limit) mirrored
   by server side validation
 
@@ -75,7 +76,7 @@ keeping the same names (1280x720 recommended) and the table above keeps working.
 | Client tooling | Angular CLI 22, Vitest 4 through `@angular/build:unit-test` |
 | Server | Node.js, Express 5, Mongoose 9, JSON Web Token, bcryptjs, Multer 2, CORS, dotenv |
 | Database | MongoDB |
-| Storage | Local disk (`server/src/uploads`), served under `/uploads` |
+| Storage | Local disk by default, any S3 compatible bucket (AWS S3, Cloudflare R2, MinIO) when `STORAGE_DRIVER=s3` |
 
 ---
 
@@ -126,6 +127,19 @@ Open <http://localhost:4200>, register an account and upload your first video.
 | `PORT` | Port the API listens on. Avoid 5000 on macOS | `5001` |
 | `MONGO_URI` | MongoDB connection string | `mongodb://localhost:27017/youtube-clone` |
 | `JWT_SECRET` | Secret used to sign the tokens | a long random string |
+| `STORAGE_DRIVER` | `local` keeps the files on disk, `s3` sends them to a bucket | `local` |
+
+When `STORAGE_DRIVER=s3`, these are required as well. They work with AWS S3, Cloudflare R2,
+Backblaze B2, DigitalOcean Spaces and MinIO alike:
+
+| Variable | Description | Example |
+| --- | --- | --- |
+| `S3_BUCKET` | Bucket that receives the uploads | `youtube-clone-media` |
+| `S3_REGION` | Region reported to the service, `auto` fits R2 | `auto` |
+| `S3_ENDPOINT` | Needed by R2, MinIO and similar services, not by AWS | `https://<account-id>.r2.cloudflarestorage.com` |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | Credentials, or the standard AWS environment variables | |
+| `S3_PUBLIC_BASE_URL` | Public or CDN base url used to build the links | `https://pub-<id>.r2.dev` |
+| `S3_PREFIX` | Folder created inside the bucket | `uploads` |
 
 The client needs no environment file for development: `client/src/environments/environment.ts`
 points to `/api/v1`, and the Angular dev server proxies `/api` and `/uploads` to
@@ -274,6 +288,12 @@ stack trace.
 **Counters in one query.** The feed reads the like and dislike counters of every video with a single
 aggregation instead of one query per video.
 
+**Storage is a driver.** The API only knows `saveFile` and `removeFile` (`server/src/storage`).
+`local` writes to `server/src/uploads` and serves the files at `/uploads`, `s3` puts the buffer in a
+bucket and returns its public url. Both store a plain url in MongoDB, so records created with one
+driver keep working after switching to the other. An unknown driver stops the boot with a readable
+message, and a bucket that is not configured fails on the first upload instead of at import time.
+
 ---
 
 ## Testing
@@ -355,7 +375,6 @@ Client (`client/`):
 
 ## Roadmap
 
-- Move the uploads from the local disk to object storage
 - Refresh tokens and a global 401 handler that signs the user out
 - Server side tests for the controllers and the middleware
 
