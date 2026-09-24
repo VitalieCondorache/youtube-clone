@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
@@ -32,7 +33,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use('/uploads', express.static('src/uploads'));
+// Serve uploaded files using an absolute path so it works regardless of the cwd
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes - Make sure we're not applying any middleware globally that would affect public routes
 app.use('/api/v1/auth', authRoutes);
