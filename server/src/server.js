@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
+const storage = require('./storage');
 const authRoutes = require('./routes/authRoutes');
 const videoRoutes = require('./routes/videoRoutes');
 const commentRoutes = require('./routes/commentRoutes');
@@ -72,6 +73,7 @@ app.use((error, req, res, next) => {
 const PORT = process.env.PORT || 5001;
 const server = app.listen(PORT, () => {
     console.log(`Server running in development mode on port ${PORT}`);
+    console.log(`Storage driver: ${storage.driver}`);
 });
 
 // Fail loudly instead of silently doing nothing when the port is taken.

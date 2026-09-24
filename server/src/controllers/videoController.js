@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 const path = require('path');
-const fs = require('fs/promises');
 const Video = require('../models/Video');
 const Like = require('../models/Like');
 const Comment = require('../models/Comment');
+const storage = require('../storage');
 
 // Aggregate the likes/dislikes of several videos in a single query
 const getLikeStats = async (videoIds) => {
@@ -46,31 +46,55 @@ const getPaging = (req) => {
     return { page: validPage, limit: validLimit, skip: (validPage - 1) * validLimit };
 };
 
+// Unique file name, keeping the original extension so browsers can play it back
+const buildFilename = (file) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+
+    return `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`;
+};
+
 // @desc    Upload a new video
 // @route   POST /api/v1/videos
 // @access  Private
 const uploadVideo = async (req, res) => {
+    const savedUrls = [];
+
     try {
         const { title, description } = req.body;
 
         if (!title || !title.trim()) {
-            await removeStoredFiles(req.files);
             return res.status(400).json({ status: 'fail', message: 'A title is required' });
         }
 
         if (!req.files || !req.files.videoFile || !req.files.thumbnailFile) {
-            await removeStoredFiles(req.files);
             return res.status(400).json({ status: 'fail', message: 'Both video file and thumbnail are required' });
         }
 
-        const videoUrl = `/uploads/${req.files.videoFile[0].filename}`;
-        const thumbnailUrl = `/uploads/${req.files.thumbnailFile[0].filename}`;
+        const videoFile = req.files.videoFile[0];
+        const thumbnailFile = req.files.thumbnailFile[0];
+
+        // the storage driver stores the file and returns the url to keep in the database
+        savedUrls.push(
+            await storage.saveFile({
+                buffer: videoFile.buffer,
+                filename: buildFilename(videoFile),
+                mimetype: videoFile.mimetype
+            })
+        );
+
+        savedUrls.push(
+            await storage.saveFile({
+                buffer: thumbnailFile.buffer,
+                filename: buildFilename(thumbnailFile),
+                mimetype: thumbnailFile.mimetype
+            })
+        );
 
         const video = await Video.create({
             title: title.trim(),
             description: (description || '').trim(),
-            videoUrl,
-            thumbnailUrl,
+            videoUrl: savedUrls[0],
+            thumbnailUrl: savedUrls[1],
             uploader: req.user._id
         });
 
@@ -79,8 +103,8 @@ const uploadVideo = async (req, res) => {
             data: video
         });
     } catch (error) {
-        // multer stores the files before this handler runs, do not leave them behind
-        await removeStoredFiles(req.files);
+        // a request that fails half way must not leave files behind
+        await Promise.all(savedUrls.map((url) => storage.removeFile(url)));
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
@@ -292,39 +316,6 @@ const updateVideo = async (req, res) => {
     }
 };
 
-// Removes the files that multer stored for a request that will not be saved
-const removeStoredFiles = async (files) => {
-    if (!files) {
-        return;
-    }
-
-    const urls = Object.values(files)
-        .flat()
-        .map((file) => `/uploads/${file.filename}`);
-
-    await Promise.all(urls.map(removeUpload));
-};
-
-// Removes an uploaded file from disk. A file that is already gone is not an error.
-const removeUpload = async (url) => {
-    // basename() keeps a crafted url from escaping the uploads folder
-    const filename = path.basename(url || '');
-
-    if (!filename) {
-        return;
-    }
-
-    const filePath = path.join(__dirname, '..', 'uploads', filename);
-
-    try {
-        await fs.unlink(filePath);
-    } catch (error) {
-        if (error.code !== 'ENOENT') {
-            console.error(`Could not delete ${filePath}: ${error.message}`);
-        }
-    }
-};
-
 // @desc    Delete one of the videos of the current user (its media, comments and likes too)
 // @route   DELETE /api/v1/videos/:id
 // @access  Private (owner only)
@@ -352,8 +343,8 @@ const deleteVideo = async (req, res) => {
 
         await video.deleteOne();
 
-        // The media files are secondary, removeUpload never throws
-        await Promise.all([removeUpload(video.videoUrl), removeUpload(video.thumbnailUrl)]);
+        // The media files are secondary, removeFile never throws
+        await Promise.all([storage.removeFile(video.videoUrl), storage.removeFile(video.thumbnailUrl)]);
 
         res.status(200).json({
             status: 'success',
