@@ -8,6 +8,7 @@ Built as a portfolio project to demonstrate a production-style setup: standalone
 signals, a JWT based auth flow, multipart uploads with progress reporting, REST endpoints with a
 consistent response contract, and a unit test suite for the client.
 
+![CI](https://github.com/VitalieCondorache/youtube-clone/actions/workflows/ci.yml/badge.svg)
 ![Angular](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose%209-47A248?logo=mongodb&logoColor=white)
@@ -304,6 +305,18 @@ Test Files  10 passed (10)
 
 The API was verified end to end with curl (authentication, upload, feed, reactions, comments,
 deletion, permissions and static files); see the snippets above to reproduce the same checks.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push, on pull requests and on demand:
+
+| Job | Steps |
+| --- | --- |
+| Client | `npm ci`, a production build and the unit test suite |
+| API | `npm ci` and a syntax check of every file under `server/src` |
+
+Both jobs run on Node 24 with the npm cache enabled, and a new push to the same branch cancels the
+previous run.
 
 ---
 
