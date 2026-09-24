@@ -81,7 +81,14 @@ export class RegisterComponent {
         this.router.navigate(['/']);
       },
       error: (err) => {
-        this.errorMessage = err.error.message || 'Registration failed or server error';
+        // Fix for null err.error issue
+        if (err.error && err.error.message) {
+          this.errorMessage = err.error.message;
+        } else if (err.message) {
+          this.errorMessage = err.message;
+        } else {
+          this.errorMessage = 'Registration failed or server error';
+        }
       }
     });
   }

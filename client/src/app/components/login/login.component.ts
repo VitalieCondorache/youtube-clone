@@ -69,7 +69,14 @@ export class LoginComponent {
         this.router.navigate(['/']);
       },
       error: (err) => {
-        this.errorMessage = err.error.message || 'Invalid credentials or server error';
+        // The response body can be empty (proxy/server errors), so guard before reading it
+        if (err.error && err.error.message) {
+          this.errorMessage = err.error.message;
+        } else if (err.message) {
+          this.errorMessage = err.message;
+        } else {
+          this.errorMessage = 'Invalid credentials or server error';
+        }
       }
     });
   }
