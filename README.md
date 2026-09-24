@@ -13,7 +13,7 @@ consistent response contract, and a unit test suite for the client.
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose%209-47A248?logo=mongodb&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwindcss&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-35_passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-40_passing-brightgreen)
 
 ---
 
@@ -40,6 +40,7 @@ keeping the same names (1280x720 recommended) and the table above keeps working.
 
 ### Videos
 - Public feed with thumbnails, channel name, view counter, like counter and upload dates
+- The feed is paginated (12 videos per page) and loads the next page as you scroll to the bottom
 - Video detail page with the player, description, channel and view counter (incremented on each visit)
 - Dedicated page listing the videos you uploaded, with an inline confirmation to delete them
 - The title and the description of your own videos can be edited inline from that page
@@ -145,6 +146,13 @@ Base URL: `/api/v1`. Every response follows the same contract:
 
 Protected endpoints expect an `Authorization: Bearer <token>` header.
 
+The feed is paginated. Besides the items it reports the page that was returned, the page size
+(hard capped at 50) and the totals, so a client knows when to stop:
+
+```jsonc
+{ "status": "success", "results": 12, "page": 2, "limit": 12, "pages": 5, "total": 58, "data": [ /* ... */ ] }
+```
+
 ### Authentication
 
 | Method | Endpoint | Access | Description |
@@ -158,7 +166,7 @@ Both answer with `{ status, data: { _id, username, email, token } }`.
 
 | Method | Endpoint | Access | Description |
 | --- | --- | --- | --- |
-| `GET` | `/videos` | Public | Feed, with `likesCount` and `dislikesCount` per video |
+| `GET` | `/videos?page=1&limit=12` | Public | One page of the feed, with `likesCount` and `dislikesCount` per video |
 | `GET` | `/videos/mine` | Private | Videos uploaded by the current user |
 | `GET` | `/videos/:id` | Public | Single video, increments `views`; includes `userReaction` when a token is sent |
 | `POST` | `/videos` | Private | Upload. `multipart/form-data` with `title`, `description`, `videoFile`, `thumbnailFile` |
@@ -277,13 +285,14 @@ npm test
 ```
 
 ```
-Test Files  9 passed (9)
-     Tests  35 passed (35)
+Test Files  10 passed (10)
+     Tests  40 passed (40)
 ```
 
 | Spec | Covers |
 | --- | --- |
 | `app.spec.ts` | the root component renders the navbar and the router outlet |
+| `components/home/home.component.spec.ts` | the feed pages, the scroll trigger and a failing feed |
 | `services/auth.service.spec.ts` | register payload, token persistence, error status, logout |
 | `interceptors/auth.interceptor.spec.ts` | the bearer header is added only when a session exists |
 | `guards/auth.guard.spec.ts` | logged in users pass, anonymous visitors are redirected |
@@ -334,7 +343,6 @@ Client (`client/`):
 ## Roadmap
 
 - Preview the uploaded video before submitting the form
-- Pagination or infinite scroll on the feed
 - Move the uploads from the local disk to object storage
 - Refresh tokens and a global 401 handler that signs the user out
 - Server side tests for the controllers and the middleware
