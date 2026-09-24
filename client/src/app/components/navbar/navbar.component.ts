@@ -31,6 +31,22 @@ import { AuthService } from '../../services/auth.service';
 
       <!-- User Auth Actions -->
       <div class="flex items-center space-x-3">
+        <a
+          *ngIf="authService.isLoggedIn()"
+          routerLink="/my-videos"
+          class="text-sm text-gray-300 hover:text-white px-2 py-1.5"
+        >
+          My videos
+        </a>
+
+        <a
+          *ngIf="authService.isLoggedIn()"
+          routerLink="/upload"
+          class="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full border border-gray-700 flex items-center gap-1"
+        >
+          <span class="text-red-500 font-bold">+</span> Upload
+        </a>
+
         <ng-container *ngIf="authService.isLoggedIn(); else loggedOut">
           <button (click)="onLogout()" class="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full border border-gray-700">
             Logout
