@@ -1,31 +1,53 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const protect = async (req, res, next) => {
-    let token;
+// Reads the user from the "Authorization: Bearer <token>" header.
+// Returns null when the header is missing/empty or the token is not valid.
+const getUserFromRequest = async (req) => {
+    const authHeader = req.headers.authorization;
 
-    // Check if authorization header exists and starts with Bearer
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        try {
-            // Get token from header (Format: "Bearer <token>")
-            token = req.headers.authorization.split(' ')[1];
-
-            // Verify token using secret key
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-            // Attach user object to request (excluding password)
-            req.user = await User.findById(decoded.id).select('-password');
-
-            next();
-        } catch (error) {
-            console.error(error);
-            return res.status(401).json({ status: 'fail', message: 'Not authorized, token failed' });
-        }
+    if (!authHeader || !authHeader.startsWith('Bearer')) {
+        return null;
     }
 
+    const token = authHeader.split(' ')[1];
     if (!token) {
-        return res.status(401).json({ status: 'fail', message: 'Not authorized, no token provided' });
+        return null;
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        return await User.findById(decoded.id).select('-password');
+    } catch (error) {
+        return null;
     }
 };
 
-module.exports = { protect };
+const notAuthorized = (res, message) => res.status(401).json({ status: 'fail', message });
+
+// Block the request when no valid token is provided
+const protect = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer') || !authHeader.split(' ')[1]) {
+        return notAuthorized(res, 'Not authorized, no token provided');
+    }
+
+    const user = await getUserFromRequest(req);
+
+    if (!user) {
+        return notAuthorized(res, 'Not authorized, token failed');
+    }
+
+    // Attach user object to request (excluding password)
+    req.user = user;
+    next();
+};
+
+// Attach the user when a valid token is present, but never block public routes
+const optionalProtect = async (req, res, next) => {
+    req.user = await getUserFromRequest(req);
+    next();
+};
+
+module.exports = { protect, optionalProtect };
