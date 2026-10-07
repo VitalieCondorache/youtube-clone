@@ -9,15 +9,13 @@ const authRoutes = require('./routes/authRoutes');
 const videoRoutes = require('./routes/videoRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 
-// Connect to Database
 connectDB();
 
 const app = express();
 
-// Middleware
 app.use(express.json());
 
-// CORS Configuration - More Permissive for Development
+// CORS is limited to the local development origins; the API sits behind the client proxy.
 const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests from localhost origins (development)
@@ -37,7 +35,6 @@ app.use(cors(corsOptions));
 // Serve uploaded files using an absolute path so it works regardless of the cwd
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// API Routes - Make sure we're not applying any middleware globally that would affect public routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/videos', videoRoutes);
 app.use('/api/v1/comments', commentRoutes);

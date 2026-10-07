@@ -1,17 +1,23 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
+  "description": "REST API for the YouTube Clone portfolio project.",
+  "main": "src/server.js",
   "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "express",
+    "mongoose",
+    "rest-api",
+    "jwt"
+  ],
+  "author": "Vitalie Condorache",
+  "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1139.0",
     "bcryptjs": "^3.0.3",
